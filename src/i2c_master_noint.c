@@ -1,4 +1,4 @@
-#include "NU32DIP.h"          // constants, funcs for startup and UART
+#include "nu32dip.h"          // constants, funcs for startup and UART
 // I2C Master utilities, 400 kHz, using polling rather than interrupts
 // The functions must be callled in the correct order as per the I2C protocol
 // Master will use I2C1 (SET PINS) SDA1 (D9) and SCL1 (D10)
