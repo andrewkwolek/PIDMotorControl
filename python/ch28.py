@@ -15,14 +15,14 @@ while not has_quit:
     print('PIC32 MOTOR DRIVER INTERFACE')
     # display the menu options; this list will grow
     print('\ta: Read current sensor (ADC counts) \tb: Read current sensor (mA)\n')
-    print('\tc: Read encoder (counts) \td: Dummy variable\n')
-    print('\te: Reset encoder \tf: Set PWM (-100 to 100)\n')
-    print('\tg: Set current gains \th: Get current gains\n')
-    print('\ti: Set position gains \tj: Get position gains\n')
-    print('\tk: Test current control \tl: Go to angle (deg)\n')
-    print('\tm: Load step trajectory \tn: Load cubic trajectory\n')
-    print('\to: Execute trajectory \tp: Unpower the motor\n')
-    print('\tq: Quit client \tr: Get mode\n')
+    print('\tc: Read encoder (counts) \t\td: Dummy variable\n')
+    print('\te: Reset encoder \t\t\tf: Set PWM (-100 to 100)\n')
+    print('\tg: Set current gains \t\t\th: Get current gains\n')
+    print('\ti: Set position gains \t\t\tj: Get position gains\n')
+    print('\tk: Test current control \t\tl: Go to angle (deg)\n')
+    print('\tm: Load step trajectory \t\tn: Load cubic trajectory\n')
+    print('\to: Execute trajectory \t\t\tp: Unpower the motor\n')
+    print('\tq: Quit client \t\t\t\tr: Get mode\n')
     # read the user's choice
     selection = input('\nENTER COMMAND: ')
     selection_endline = selection+'\n'

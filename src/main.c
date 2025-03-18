@@ -1,10 +1,12 @@
 #include "nu32dip.h"
 #include "ina219.h"
 #include "encoder.h"
+#include "currentcontrol.h"
 
 #define BUF_SIZE 200
 #define PWM 20000
 #define PR3_VAL (NU32DIP_SYS_FREQ/PWM) - 1
+#define MAX_SAMPLES 200
 
 int main() {
     char buffer[BUF_SIZE];
@@ -14,6 +16,9 @@ int main() {
 
     UART2_Startup();
     INA219_Startup();
+
+    // Initialize current controller (sets up Timer4 for ISR)
+    CurrentControl_Init();
 
     __builtin_disable_interrupts();
     // Disable analog on Port A
@@ -124,11 +129,33 @@ int main() {
             case 'g':
             {
                 // Set current gains
+                float kp, ki;
+                NU32DIP_WriteUART1("Enter your desired Kp current gain: ");
+                NU32DIP_ReadUART1(buffer, BUF_SIZE);
+                sscanf(buffer, "%f", &kp);
+                
+                NU32DIP_WriteUART1("Enter your desired Ki current gain: ");
+                NU32DIP_ReadUART1(buffer, BUF_SIZE);
+                sscanf(buffer, "%f", &ki);
+                
+                if (kp >= 0 && ki >= 0) {
+                    CurrentControl_SetGains(kp, ki);
+                    char m[100];
+                    sprintf(m, "Sending Kp = %.3f and Ki = %.3f to the current controller.\r\n", kp, ki);
+                    NU32DIP_WriteUART1(m);
+                } else {
+                    NU32DIP_WriteUART1("Invalid gains. Both must be non-negative.\r\n");
+                }
                 break;
             }
             case 'h':
             {
                 // Get current gains
+                float kp, ki;
+                CurrentControl_GetGains(&kp, &ki);
+                char m[100];
+                sprintf(m, "The current controller is using Kp = %.3f and Ki = %.3f\r\n", kp, ki);
+                NU32DIP_WriteUART1(m);
                 break;
             }
             case 'i':
@@ -144,6 +171,29 @@ int main() {
             case 'k':
             {
                 // Test current control
+                NU32DIP_WriteUART1("Starting current control test with 100 Hz, ±200 mA square wave\r\n");
+                
+                // Arrays to hold the data copied from the controller
+                float ref_data[250];  // Temporary buffer for reference data
+                float meas_data[250]; // Temporary buffer for measurement data
+                
+                // Run the test and collect data
+                int numSamples = CurrentControl_Test();
+                
+                // Copy the test data from the current controller to our local arrays
+                CurrentControl_GetTestData(ref_data, meas_data, numSamples);
+                
+                // Send number of samples back to client
+                sprintf(buffer, "%d\r\n", numSamples);
+                NU32DIP_WriteUART1(buffer);
+                
+                // Send the data back to client
+                for (int i = 0; i < numSamples; i++) {
+                    sprintf(buffer, "%.2f %.2f\r\n", ref_data[i], meas_data[i]);
+                    NU32DIP_WriteUART1(buffer);
+                }
+                
+                NU32DIP_WriteUART1("Current control test complete\r\n");
                 break;
             }
             case 'l':
