@@ -13,77 +13,43 @@ static volatile float u = 0.0;        // Control output
 static volatile int enabled = 0;      // Control enabled flag
 
 // Arrays for storing test data
-#define NUMSAMPS 50
-#define PLOTPTS 100
-static volatile float REFarray[PLOTPTS];
-static volatile float MEASarray[PLOTPTS];
-static volatile int CurrentWaveform[NUMSAMPS];
-static volatile int StoringData = 0;
+#define MAX_SAMPLES 250
+static volatile float reference[MAX_SAMPLES];
+static volatile float measurement[MAX_SAMPLES];
 
 // Constants
 static const float umax = 100.0;     // Maximum control output
 static const float umin = -100.0;    // Minimum control output
 
-static volatile Mode mode = IDLE;
-
 // ISR for current control loop
 void __ISR(_TIMER_4_VECTOR, IPL5SOFT) CurrentControlISR(void) {
-    static int counter = 0;
-    static int plotind = 0;
-    static int decctr = 0;
-    static int adcval = 0;
-
-    mode = getMode();
-
     // Only execute control calculations if enabled
-    switch (mode) {
-        case ITEST:
-            // Read current from sensor
-            actual = INA219_read_current();
-            
-            // Calculate error
-            error = CurrentWaveform[counter] - actual;
-            
-            // Update integral term with anti-windup
-            integral += error;
-            
-            // Calculate control output (PI controller)
-            u = kp * error + ki * integral;
-            
-            // Apply output limits with anti-windup
-            if (u > umax) {
-                u = umax;
-                // Prevent further integration in this direction
-                integral -= error;
-            } else if (u < umin) {
-                u = umin;
-                // Prevent further integration in this direction
-                integral -= error;
-            }
-            
-            // Apply the control output
-            CurrentControl_ApplyOutput(u);
-
-            if (StoringData) {
-                MEASarray[plotind] = adcval; 
-                REFarray[plotind] = CurrentWaveform[counter];
-                plotind++;
-
-                if (plotind == PLOTPTS) { 
-                    plotind = 0;
-                    StoringData = 0; 
-                }
-            }
-
-            counter++; // add one to counter every time ISR is entered
-            if (counter == NUMSAMPS) {
-                counter = 0; // roll the counter over when needed
-                setMode(IDLE);
-            }
-            break;
+    if (enabled) {
+        // Read current from sensor
+        actual = INA219_read_current();
         
-        case IDLE:
-            break;
+        // Calculate error
+        error = target - actual;
+        
+        // Update integral term with anti-windup
+        integral += error;
+        
+        // Calculate control output (PI controller)
+        u = kp * error + ki * integral;
+        
+        // Apply output limits with anti-windup
+        if (u > umax) {
+            u = umax;
+            // Prevent further integration in this direction
+            integral -= error;
+        } else if (u < umin) {
+            u = umin;
+            // Prevent further integration in this direction
+            integral -= error;
+        }
+        
+        // Apply the control output
+        CurrentControl_ApplyOutput(u);
     }
     
     // Clear the timer interrupt flag
@@ -101,8 +67,6 @@ void CurrentControl_Init(void) {
     error = 0.0;     // Initial error
     u = 0.0;         // Initial control output
     enabled = 0;     // Start with control loop disabled
-
-    makeCurrentWaveform();
     
     // Set up Timer4 for 5kHz interrupt frequency
     __builtin_disable_interrupts();
@@ -122,19 +86,6 @@ void CurrentControl_Init(void) {
     T4CONbits.ON = 0;
     
     __builtin_enable_interrupts();
-}
-
-void makeCurrentWaveform() {
-    int i = 0;
-    int center = 0;
-    int A = 200; // square wave, fill in center value and amplitude
-    for (i = 0; i < NUMSAMPS; ++i) {
-        if ( i < NUMSAMPS/2) {
-            CurrentWaveform[i] = center + A;
-        } else {
-            CurrentWaveform[i] = center - A;
-        }
-    }
 }
 
 // Set PI gains for the current controller
@@ -191,20 +142,128 @@ void CurrentControl_ResetIntegrator(void) {
     __builtin_enable_interrupts();
 }
 
+// Start the current control loop
+void CurrentControl_Enable(void) {
+    CurrentControl_ResetIntegrator(); // Reset integrator when enabling
+    enabled = 1;
+    T4CONbits.ON = 1; // Turn on Timer4 to start ISR
+}
+
+// Stop the current control loop
+void CurrentControl_Disable(void) {
+    enabled = 0;
+    T4CONbits.ON = 0; // Turn off Timer4
+    OC3RS = 0; // Set PWM to 0
+}
+
+// Get the current control status
+int CurrentControl_IsEnabled(void) {
+    return enabled;
+}
+
 // Test current control with a 100 Hz square wave reference
 // Returns number of samples recorded
-void CurrentControl_Test(void) {
-    char message[100];
-    int i = 0;
+int CurrentControl_Test(void) {
+    // Save the previous target current
+    float prevTarget = target;
+    
+    // Variables for the ±200 mA, 100 Hz square wave reference
+    float squareWaveAmp = 200.0; // mA amplitude
+    int cycleCount = 0;          // Count the number of complete cycles
+    int maxCycles = 3;           // Number of cycles to capture (2-4)
+    
+    // Array to store the data index that we're currently on
+    volatile int sampleIndex = 0;
+    
     // Reset the integrator at the start of the test
     CurrentControl_ResetIntegrator();
     
-    StoringData = 1;
-    while (StoringData) {
-        ;
+    // Enable current control loop
+    int wasEnabled = CurrentControl_IsEnabled();
+    if (!wasEnabled) {
+        CurrentControl_Enable();
     }
-    for (i=0; i<PLOTPTS; i++) {
-        sprintf(message, "%d %d %d\r\n", PLOTPTS-i, MEASarray[i], REFarray[i]);
-        NU32DIP_WriteUART1(message);
+    
+    // Set up a timer to track the square wave generation
+    // We're running at 5kHz ISR rate, and want a 100 Hz square wave
+    // So we toggle every 25 samples (5000/100/2 = 25)
+    const int samplesPerHalfCycle = CURRENT_CONTROL_FREQ / (100 * 2);
+    int halfCycleSampleCount = 0;
+    
+    // Set initial reference to positive amplitude
+    target = squareWaveAmp;
+    
+    // Now collect data while the ISR runs the controller
+    // We'll store both the reference and the actual current values
+    
+    // Compute the total number of samples for the desired number of cycles
+    int samplesPerCycle = CURRENT_CONTROL_FREQ / 100;
+    int totalSamplesToCapture = samplesPerCycle * maxCycles;
+    
+    // Make sure we don't exceed the array size
+    if (totalSamplesToCapture > MAX_SAMPLES) {
+        totalSamplesToCapture = MAX_SAMPLES;
+    }
+    
+    // Store the current mode to return to after the test
+    int currentMode = 1; // Current control mode
+    
+    // Main test loop
+    while (sampleIndex < totalSamplesToCapture) {
+        // Record the reference and actual values
+        reference[sampleIndex] = target;
+        measurement[sampleIndex] = actual;
+        
+        // Update the sample index
+        sampleIndex++;
+        
+        // Check if we need to toggle the reference value
+        halfCycleSampleCount++;
+        if (halfCycleSampleCount >= samplesPerHalfCycle) {
+            // Toggle the reference between positive and negative
+            target = -target;
+            halfCycleSampleCount = 0;
+            
+            // Track completed cycles (after every two half-cycles)
+            if (target > 0) {
+                cycleCount++;
+            }
+        }
+        
+        // Give time for the ISR to run (avoid hogging CPU)
+        // The ISR will update 'actual' at 5kHz
+        _CP0_SET_COUNT(0);
+        while (_CP0_GET_COUNT() < NU32DIP_SYS_FREQ / CURRENT_CONTROL_FREQ) {
+            ; // Wait for approximately one ISR period
+        }
+    }
+    
+    // Test complete, return to previous state
+    target = 0.0; // Set target current to 0
+    
+    // Wait for current to settle near zero
+    _CP0_SET_COUNT(0);
+    while (_CP0_GET_COUNT() < NU32DIP_SYS_FREQ / 10) { // Wait 0.1 seconds
+        ; // Allow time for current to settle
+    }
+    
+    // Restore previous state
+    target = prevTarget;
+    
+    // If controller wasn't enabled before, disable it now
+    if (!wasEnabled) {
+        CurrentControl_Disable();
+    }
+    
+    // Return the number of samples collected
+    return sampleIndex;
+}
+
+// Get the reference and measurement data
+void CurrentControl_GetTestData(float *ref_dest, float *meas_dest, int numSamples) {
+    int i;
+    for (i = 0; i < numSamples && i < MAX_SAMPLES; i++) {
+        ref_dest[i] = reference[i];
+        meas_dest[i] = measurement[i];
     }
 }

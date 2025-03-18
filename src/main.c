@@ -173,12 +173,29 @@ int main() {
                 // Get position gains
                 break;
             }
-            case 'k':
-            {   
-                setMode(ITEST);
-                mode = ITEST;
+            case 'k': {
+                // Test current control
+                NU32DIP_WriteUART1("Starting current control test with 100 Hz, ±200 mA square wave\r\n");
+                
+                // Arrays to hold the data copied from the controller
+                float ref_data[250];  // Temporary buffer for reference data
+                float meas_data[250]; // Temporary buffer for measurement data
+                
                 // Run the test and collect data
-                CurrentControl_Test();
+                int numSamples = CurrentControl_Test();
+                
+                // Copy the test data from the current controller to our local arrays
+                CurrentControl_GetTestData(ref_data, meas_data, numSamples);
+                
+                // Send number of samples back to client
+                sprintf(buffer, "%d\r\n", numSamples);
+                NU32DIP_WriteUART1(buffer);
+                
+                // Send the data back to client
+                for (int i = 0; i < numSamples; i++) {
+                    sprintf(buffer, "%.2f %.2f\r\n", ref_data[i], meas_data[i]);
+                    NU32DIP_WriteUART1(buffer);
+                }
                 
                 NU32DIP_WriteUART1("Current control test complete\r\n");
                 break;
