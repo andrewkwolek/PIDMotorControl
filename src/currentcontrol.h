@@ -13,6 +13,8 @@
 // Initialize the current controller with default values and set up Timer4 ISR
 void CurrentControl_Init(void);
 
+void makeCurrentWaveform(void);
+
 // Set PI gains for the current controller
 void CurrentControl_SetGains(float kp, float ki);
 
@@ -28,14 +30,8 @@ void CurrentControl_ApplyOutput(float controlOutput);
 // Reset the integrator
 void CurrentControl_ResetIntegrator(void);
 
-void MakeITESTWaveform(void);
-
-// Start the current control loop
-void CurrentControl_Enable(void);
-
-// Stop the current control loop
-void CurrentControl_Disable(void);
-
-void PlotData(void);
+// Test current control with a 100 Hz square wave reference
+// Returns number of samples recorded
+void CurrentControl_Test(void);
 
 #endif // CURRENTCONTROL__H__

@@ -2,10 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define PLOTPTS 200
-#define DECIMATION 10
-#define NUMSAMPS 50
-
 // Global static volatile controller variables
 static volatile float kp = 0.5;       // Proportional gain
 static volatile float ki = 0.1;       // Integral gain
@@ -16,23 +12,26 @@ static volatile float error = 0.0;    // Error term
 static volatile float u = 0.0;        // Control output
 static volatile int enabled = 0;      // Control enabled flag
 
+// Arrays for storing test data
+#define NUMSAMPS 50
+#define PLOTPTS 100
+static volatile float REFarray[PLOTPTS];
+static volatile float MEASarray[PLOTPTS];
+static volatile int CurrentWaveform[NUMSAMPS];
+static volatile int StoringData = 0;
+
 // Constants
 static const float umax = 100.0;     // Maximum control output
 static const float umin = -100.0;    // Minimum control output
 
-static volatile enum Mode mode = IDLE;
-
-static volatile int CurrentWaveform[NUMSAMPS];
-static volatile float CurrentACTUALarray[PLOTPTS];
-static volatile float CurrentREFarray[PLOTPTS];
-static volatile int StoringCurrentData = 0;
+static volatile Mode mode = IDLE;
 
 // ISR for current control loop
 void __ISR(_TIMER_4_VECTOR, IPL5SOFT) CurrentControlISR(void) {
-    static int counter = 0; // initialize counter once
+    static int counter = 0;
     static int plotind = 0;
     static int decctr = 0;
-    static float actual = 0.f;
+    static int adcval = 0;
 
     mode = getMode();
 
@@ -43,7 +42,7 @@ void __ISR(_TIMER_4_VECTOR, IPL5SOFT) CurrentControlISR(void) {
             actual = INA219_read_current();
             
             // Calculate error
-            error = target - actual;
+            error = CurrentWaveform[counter] - actual;
             
             // Update integral term with anti-windup
             integral += error;
@@ -61,31 +60,32 @@ void __ISR(_TIMER_4_VECTOR, IPL5SOFT) CurrentControlISR(void) {
                 // Prevent further integration in this direction
                 integral -= error;
             }
-
-            if (StoringCurrentData) {
-                decctr++;
-                if (decctr == DECIMATION) { 
-                    decctr = 0; 
-                    CurrentACTUALarray[plotind] = actual; 
-                    CurrentREFarray[plotind] = CurrentWaveform[counter];
-                    plotind++;
-                }
-                if (plotind == PLOTPTS) { 
-                    plotind = 0;
-                    StoringCurrentData = 0; 
-                }
-            }
             
             // Apply the control output
             CurrentControl_ApplyOutput(u);
 
+            if (StoringData) {
+                MEASarray[plotind] = adcval; 
+                REFarray[plotind] = CurrentWaveform[counter];
+                plotind++;
+
+                if (plotind == PLOTPTS) { 
+                    plotind = 0;
+                    StoringData = 0; 
+                }
+            }
+
+            counter++; // add one to counter every time ISR is entered
+            if (counter == NUMSAMPS) {
+                counter = 0; // roll the counter over when needed
+                setMode(IDLE);
+            }
+            break;
+        
+        case IDLE:
             break;
     }
     
-    counter++; // add one to counter every time ISR is entered
-    if (counter == NUMSAMPS) {
-        counter = 0; // roll the counter over when needed
-    }
     // Clear the timer interrupt flag
     IFS0bits.T4IF = 0;
 }
@@ -101,6 +101,8 @@ void CurrentControl_Init(void) {
     error = 0.0;     // Initial error
     u = 0.0;         // Initial control output
     enabled = 0;     // Start with control loop disabled
+
+    makeCurrentWaveform();
     
     // Set up Timer4 for 5kHz interrupt frequency
     __builtin_disable_interrupts();
@@ -120,8 +122,19 @@ void CurrentControl_Init(void) {
     T4CONbits.ON = 0;
     
     __builtin_enable_interrupts();
+}
 
-    MakeITESTWaveform();
+void makeCurrentWaveform() {
+    int i = 0;
+    int center = 0;
+    int A = 200; // square wave, fill in center value and amplitude
+    for (i = 0; i < NUMSAMPS; ++i) {
+        if ( i < NUMSAMPS/2) {
+            CurrentWaveform[i] = center + A;
+        } else {
+            CurrentWaveform[i] = center - A;
+        }
+    }
 }
 
 // Set PI gains for the current controller
@@ -178,43 +191,20 @@ void CurrentControl_ResetIntegrator(void) {
     __builtin_enable_interrupts();
 }
 
-// Start the current control loop
-void CurrentControl_Enable(void) {
-    CurrentControl_ResetIntegrator(); // Reset integrator when enabling
-    enabled = 1;
-    T4CONbits.ON = 1; // Turn on Timer4 to start ISR
-}
-
-// Stop the current control loop
-void CurrentControl_Disable(void) {
-    enabled = 0;
-    T4CONbits.ON = 0; // Turn off Timer4
-    OC3RS = 0; // Set PWM to 0
-}
-
-// Generate reference waveform
-void MakeITESTWaveform(void) {
-    int i = 0;
-    int center = 0;
-    int A = 200; // square wave, fill in center value and amplitude
-    for (i = 0; i < NUMSAMPS; ++i) {
-        if ( i < NUMSAMPS/2) {
-            CurrentWaveform[i] = center + A;
-        } else {
-            CurrentWaveform[i] = center - A;
-        }
-    }
-}
-
-void PlotData(void) {
-    int i = 0;
+// Test current control with a 100 Hz square wave reference
+// Returns number of samples recorded
+void CurrentControl_Test(void) {
     char message[100];
-    StoringCurrentData = 1;
-    while (StoringCurrentData) {
+    int i = 0;
+    // Reset the integrator at the start of the test
+    CurrentControl_ResetIntegrator();
+    
+    StoringData = 1;
+    while (StoringData) {
         ;
     }
-    for (i=0; i<PLOTPTS; i++) { // send plot data to MATLAB
-        sprintf(message, "%d %d %d\r\n", PLOTPTS-i, CurrentACTUALarray[i], CurrentREFarray[i]);
+    for (i=0; i<PLOTPTS; i++) {
+        sprintf(message, "%d %d %d\r\n", PLOTPTS-i, MEASarray[i], REFarray[i]);
         NU32DIP_WriteUART1(message);
     }
 }

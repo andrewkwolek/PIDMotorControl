@@ -7,8 +7,9 @@
 #define BUF_SIZE 200
 #define PWM 20000
 #define PR3_VAL (NU32DIP_SYS_FREQ/PWM) - 1
+#define PLOTPTS 200
 
-static volatile enum Mode mode = IDLE;
+static volatile Mode mode = IDLE;
 
 int main() {
     char buffer[BUF_SIZE];
@@ -46,8 +47,8 @@ int main() {
     T3CONbits.ON = 1;
     OC3CONbits.OCTSEL = 1;
     OC3CONbits.OCM = 0x6;
-    OC3RS = PR3/2;
-    OC3R = PR3/2;
+    OC3RS = 0;
+    OC3R = 0;
     OC3CONbits.ON = 1;
     __builtin_enable_interrupts();
 
@@ -55,9 +56,7 @@ int main() {
         NU32DIP_ReadUART1(buffer, BUF_SIZE);
         NU32DIP_YELLOW = 1;
 
-        __builtin_disable_interrupts(); // keep ISR disabled as briefly as possible
         mode = getMode();
-        __builtin_enable_interrupts();
         switch(buffer[0]) {
             case 'a':
             {
@@ -175,15 +174,12 @@ int main() {
                 break;
             }
             case 'k':
-            {
-                // Test current control
-                NU32DIP_WriteUART1("Starting current control test with 100 Hz, ±200 mA square wave\r\n");
-                // Send the data back to client
-                __builtin_disable_interrupts(); // keep ISR disabled as briefly as possible
+            {   
                 setMode(ITEST);
                 mode = ITEST;
-                __builtin_enable_interrupts();
-                PlotData();
+                // Run the test and collect data
+                CurrentControl_Test();
+                
                 NU32DIP_WriteUART1("Current control test complete\r\n");
                 break;
             }
