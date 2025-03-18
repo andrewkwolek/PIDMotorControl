@@ -2,11 +2,13 @@
 #include "ina219.h"
 #include "encoder.h"
 #include "currentcontrol.h"
+#include "utilities.h"
 
 #define BUF_SIZE 200
 #define PWM 20000
 #define PR3_VAL (NU32DIP_SYS_FREQ/PWM) - 1
-#define MAX_SAMPLES 200
+
+static volatile enum Mode mode = IDLE;
 
 int main() {
     char buffer[BUF_SIZE];
@@ -19,6 +21,8 @@ int main() {
 
     // Initialize current controller (sets up Timer4 for ISR)
     CurrentControl_Init();
+
+    char message[100];
 
     __builtin_disable_interrupts();
     // Disable analog on Port A
@@ -50,6 +54,10 @@ int main() {
     while (1) {
         NU32DIP_ReadUART1(buffer, BUF_SIZE);
         NU32DIP_YELLOW = 1;
+
+        __builtin_disable_interrupts(); // keep ISR disabled as briefly as possible
+        mode = getMode();
+        __builtin_enable_interrupts();
         switch(buffer[0]) {
             case 'a':
             {
@@ -130,11 +138,9 @@ int main() {
             {
                 // Set current gains
                 float kp, ki;
-                NU32DIP_WriteUART1("Enter your desired Kp current gain: ");
                 NU32DIP_ReadUART1(buffer, BUF_SIZE);
                 sscanf(buffer, "%f", &kp);
                 
-                NU32DIP_WriteUART1("Enter your desired Ki current gain: ");
                 NU32DIP_ReadUART1(buffer, BUF_SIZE);
                 sscanf(buffer, "%f", &ki);
                 
@@ -172,27 +178,12 @@ int main() {
             {
                 // Test current control
                 NU32DIP_WriteUART1("Starting current control test with 100 Hz, ±200 mA square wave\r\n");
-                
-                // Arrays to hold the data copied from the controller
-                float ref_data[250];  // Temporary buffer for reference data
-                float meas_data[250]; // Temporary buffer for measurement data
-                
-                // Run the test and collect data
-                int numSamples = CurrentControl_Test();
-                
-                // Copy the test data from the current controller to our local arrays
-                CurrentControl_GetTestData(ref_data, meas_data, numSamples);
-                
-                // Send number of samples back to client
-                sprintf(buffer, "%d\r\n", numSamples);
-                NU32DIP_WriteUART1(buffer);
-                
                 // Send the data back to client
-                for (int i = 0; i < numSamples; i++) {
-                    sprintf(buffer, "%.2f %.2f\r\n", ref_data[i], meas_data[i]);
-                    NU32DIP_WriteUART1(buffer);
-                }
-                
+                __builtin_disable_interrupts(); // keep ISR disabled as briefly as possible
+                setMode(ITEST);
+                mode = ITEST;
+                __builtin_enable_interrupts();
+                PlotData();
                 NU32DIP_WriteUART1("Current control test complete\r\n");
                 break;
             }

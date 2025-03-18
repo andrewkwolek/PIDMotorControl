@@ -5,6 +5,7 @@
 # sudo apt-get install python3-matplotlib
 
 import serial
+import matplotlib.pyplot as plt
 ser = serial.Serial('/dev/ttyUSB0', 230400)
 print('Opening port: ')
 print(ser.name)
@@ -64,19 +65,27 @@ while not has_quit:
         # get the number to send
         n_str = input('What PWM value would you like [-100 to 100]? ')
         n_int = int(n_str)  # turn it into an int
-        # print it to the screen to double check
-        print('number = ' + str(n_int))
 
         ser.write((str(n_int)+'\n').encode())  # send the number
         n_str = ser.read_until(b'\n')  # get the incremented number back
         print(str(n_str) + '\n')  # print it to the screen
-        pass
     elif (selection == 'g'):
         # Set current gains
-        pass
+        n_str = input('Enter your desired Kp current gain: ')
+        n_float = float(n_str)  # turn it into an int
+        ser.write((str(n_float)+'\n').encode())
+
+        n_str = input('Enter your desired Ki current gain: ')
+        n_float = float(n_str)  # turn it into an int
+        ser.write((str(n_float)+'\n').encode())
+
+        n_str = ser.read_until(b'\n')  # get the incremented number back
+        print(str(n_str) + '\n')  # print it to the screen
     elif (selection == 'h'):
         # Get current gains
-        pass
+        n_str = ser.read_until(b'\n')  # get the incremented number back
+        n_str = str(n_str)  # turn it into an int
+        print(n_str)  # print it to the screen
     elif (selection == 'i'):
         # Set position gains
         pass
@@ -85,7 +94,41 @@ while not has_quit:
         pass
     elif (selection == 'k'):
         # Test current control
-        pass
+        sampnum = 0
+        read_samples = 10
+        actual = []
+        ref = []
+        oc = []
+        eint = []
+        while read_samples > 1:
+            data_read = ser.read_until(b'\n', 50)
+            data_text = str(data_read, 'utf-8')
+            data = list(map(int, data_text.split()))
+
+            if (len(data) == 3):
+                read_samples = data[0]
+                actual.append(data[1])
+                ref.append(data[2])
+                sampnum = sampnum + 1
+
+            if (len(data) == 5):
+                read_samples = data[0]
+                actual.append(data[1])
+                ref.append(data[2])
+                oc.append(data[3]*1024/2400)
+                eint.append(data[4])
+                sampnum = sampnum + 1
+
+        # plot it
+        t = range(len(actual))  # time array
+        if (len(data) == 3):
+            plt.plot(t, actual, 'r*-', t, ref, 'b*-')
+        if (len(data) == 5):
+            plt.plot(t, actual, 'r*-', t, ref, 'b*-',
+                     t, oc, 'k*-', t, eint, 'g*-')
+        plt.ylabel('value')
+        plt.xlabel('sample')
+        plt.show()
     elif (selection == 'l'):
         # Go to angle (deg)
         pass

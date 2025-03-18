@@ -5,6 +5,7 @@
 #include <sys/attribs.h> // __ISR macro
 #include "nu32dip.h"
 #include "ina219.h"
+#include "utilities.h"
 
 // Define for Timer4 frequency
 #define CURRENT_CONTROL_FREQ 5000 // 5kHz control frequency
@@ -27,9 +28,7 @@ void CurrentControl_ApplyOutput(float controlOutput);
 // Reset the integrator
 void CurrentControl_ResetIntegrator(void);
 
-// Test current control with a 100 Hz square wave reference
-// Returns number of samples recorded
-int CurrentControl_Test(void);
+void MakeITESTWaveform(void);
 
 // Start the current control loop
 void CurrentControl_Enable(void);
@@ -37,9 +36,6 @@ void CurrentControl_Enable(void);
 // Stop the current control loop
 void CurrentControl_Disable(void);
 
-// Get the current control status
-int CurrentControl_IsEnabled(void);
-
-void CurrentControl_GetTestData(float *ref_dest, float *meas_dest, int numSamples);
+void PlotData(void);
 
 #endif // CURRENTCONTROL__H__
