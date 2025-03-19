@@ -9,8 +9,6 @@
 #define PR3_VAL (NU32DIP_SYS_FREQ/PWM) - 1
 #define PLOTPTS 200
 
-static volatile Mode mode = IDLE;
-
 int main() {
     char buffer[BUF_SIZE];
     NU32DIP_Startup();
@@ -56,7 +54,6 @@ int main() {
         NU32DIP_ReadUART1(buffer, BUF_SIZE);
         NU32DIP_YELLOW = 1;
 
-        mode = getMode();
         switch(buffer[0]) {
             case 'a':
             {
@@ -175,10 +172,7 @@ int main() {
             }
             case 'k': {
                 setMode(ITEST);
-                mode = ITEST;
                 CurrentControl_Test();
-                
-                NU32DIP_WriteUART1("Current control test complete\r\n");
                 break;
             }
             case 'l':

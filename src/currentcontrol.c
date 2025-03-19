@@ -18,8 +18,6 @@ static volatile float MEASarray[PLOTPTS];
 static volatile int Waveform[NUMSAMPS];
 static volatile int StoringData = 0;
 
-static volatile Mode mode = IDLE;
-
 // Constants
 static const float umax = 100.0;     // Maximum control output
 static const float umin = -100.0;    // Minimum control output
@@ -32,7 +30,7 @@ void __ISR(_TIMER_4_VECTOR, IPL5SOFT) CurrentControlISR(void) {
     static float actual = 0.0;
 
     // Only execute control calculations if enabled
-    switch (mode) {
+    switch (getMode()) {
         case ITEST:
             // Read current from sensor
             actual = INA219_read_current();
@@ -188,6 +186,10 @@ void CurrentControl_Test(void) {
     int i = 0;
     // Reset the integrator at the start of the test
     CurrentControl_ResetIntegrator();
+
+    // Send number of samples back to client
+    sprintf(message, "%d\r\n", NUMSAMPS);
+    NU32DIP_WriteUART1(message);
     
     StoringData = 1; // message to ISR to start storing data
     while (StoringData) { // wait until ISR says data storing is done

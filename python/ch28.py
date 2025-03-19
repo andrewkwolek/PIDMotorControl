@@ -6,6 +6,8 @@
 
 import serial
 import matplotlib.pyplot as plt
+from statistics import mean
+
 ser = serial.Serial('/dev/ttyUSB0', 230400)
 print('Opening port: ')
 print(ser.name)
@@ -94,40 +96,30 @@ while not has_quit:
         pass
     elif (selection == 'k'):
         # Test current control
-        sampnum = 0
-        read_samples = 10
-        actual = []
+        # get the number of data points to receive
+        n_str = ser.read_until(b'\n')
+        n_int = int(n_str)  # turn it into an int
+        print('Data length = ' + str(n_int))
         ref = []
-        oc = []
-        eint = []
-        while read_samples > 1:
-            data_read = ser.read_until(b'\n', 50)
-            data_text = str(data_read, 'utf-8')
-            data = list(map(int, data_text.split()))
-
-            if (len(data) == 3):
-                read_samples = data[0]
-                actual.append(data[1])
-                ref.append(data[2])
-                sampnum = sampnum + 1
-
-            if (len(data) == 5):
-                read_samples = data[0]
-                actual.append(data[1])
-                ref.append(data[2])
-                oc.append(data[3]*1024/2400)
-                eint.append(data[4])
-                sampnum = sampnum + 1
-
-        # plot it
-        t = range(len(actual))  # time array
-        if (len(data) == 3):
-            plt.plot(t, actual, 'r*-', t, ref, 'b*-')
-        if (len(data) == 5):
-            plt.plot(t, actual, 'r*-', t, ref, 'b*-',
-                     t, oc, 'k*-', t, eint, 'g*-')
+        data = []
+        data_received = 0
+        while data_received < n_int:
+            # get the data as a string, ints seperated by spaces
+            dat_str = ser.read_until(b'\n')
+            dat_f = list(map(float, dat_str.split()))  # now the data is a list
+            ref.append(dat_f[0])
+            data.append(dat_f[1])
+            data_received = data_received + 1
+        meanzip = zip(ref, data)
+        meanlist = []
+        for i, j in meanzip:
+            meanlist.append(abs(i-j))
+        score = mean(meanlist)
+        t = range(len(ref))  # index array
+        plt.plot(t, ref, 'r*-', t, data, 'b*-')
+        plt.title('Score = ' + str(score))
         plt.ylabel('value')
-        plt.xlabel('sample')
+        plt.xlabel('index')
         plt.show()
     elif (selection == 'l'):
         # Go to angle (deg)
