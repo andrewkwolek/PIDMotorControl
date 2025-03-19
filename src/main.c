@@ -5,8 +5,8 @@
 #include "utilities.h"
 
 #define BUF_SIZE 200
-#define PWM 20000
-#define PR3_VAL (NU32DIP_SYS_FREQ/PWM) - 1
+#define PWM_VAL 20000
+#define PR3_VAL (NU32DIP_SYS_FREQ/PWM_VAL) - 1
 #define PLOTPTS 200
 
 int main() {
@@ -68,7 +68,7 @@ int main() {
             }
             case 'c':
             {
-                // Read encoder
+                // Read encoder (counts)
                 WriteUART2("a");
                 while(!get_encoder_flag()){}
                 set_encoder_flag(0);
@@ -80,12 +80,15 @@ int main() {
             }
             case 'd':
             {
-                // Read encoder
-                int n = 0;
-                NU32DIP_ReadUART1(buffer, BUF_SIZE);
-                sscanf(buffer, "%d", &n);
-                sprintf(buffer, "%d\r\n", n + 1); // return the number + 1
-                NU32DIP_WriteUART1(buffer);
+                // Read encoder (deg)
+                WriteUART2("a");
+                while(!get_encoder_flag()){}
+                set_encoder_flag(0);
+                char m[50];
+                int p = get_encoder_count();
+                float angle = get_encoder_angle(p);
+                sprintf(m, "%f\r\n", angle);
+                NU32DIP_WriteUART1(m);
                 break;
             }
             case 'e':
@@ -98,34 +101,17 @@ int main() {
             case 'f':
             {
                 // Set PWM (-100 to 100)
-                NU32DIP_WriteUART1("Enter PWM (-100 to 100): ");
                 int pwm_val;
                 char pwm_buffer[50];
                 
                 // Read pwm value from buffer
                 NU32DIP_ReadUART1(pwm_buffer, BUF_SIZE); 
                 sscanf(pwm_buffer, "%d", &pwm_val);
-                if (pwm_val >= -100 && pwm_val <= 100)
-                {
-                    char m[50];
-                    sprintf(m, "PWM has been set to %d\r\n", pwm_val);
-                    NU32DIP_WriteUART1(m);
-
-                    // Set direction
-                    if (pwm_val < 0) {
-                        // Negative direction
-                        LATBbits.LATB10 = 1;
-                    } else {
-                        // Positive direction
-                        LATBbits.LATB10 = 0;
-                    }
-                    
-                    // Set magnitude of PWM
-                    int pwm_abs = abs(pwm_val);
-                    OC3RS = (unsigned int)((pwm_abs / 100.0) * PR3);
+                if (pwm_val >= -100 && pwm_val <= 100) {
+                    setMode(PWM);
+                    PWMControl(pwm_val);
                 }
-                else
-                {
+                else {
                     NU32DIP_WriteUART1("Invalid PWM value.\r\n");
                 }
                 break;
@@ -197,7 +183,7 @@ int main() {
             }
             case 'p':
             {
-                // Unpower the motor
+                setMode(IDLE);
                 break;
             }
             case 'q':

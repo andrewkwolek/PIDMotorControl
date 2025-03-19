@@ -5,12 +5,15 @@
 #define NUMSAMPS 50
 #define PLOTPTS 100
 #define DECIMATION 1
+#define PR3_VAL (NU32DIP_SYS_FREQ/20000) - 1
 
 // Global static volatile controller variables
 static volatile float kp = 0.12;       // Proportional gain
 static volatile float ki = 0.055;       // Integral gain
 static volatile float integral = 0.0; // Integral error term
 static volatile float Eintmax = 1000.0;
+static volatile int pwm = 0;
+static volatile int pwm_abs = 0;
 
 // Arrays for storing test data
 static volatile float REFarray[PLOTPTS];
@@ -74,10 +77,7 @@ void __ISR(_TIMER_4_VECTOR, IPL5SOFT) CurrentControlISR(void) {
                 pwm_abs = 100; // Safety clamp to maximum allowed value
             }
             
-            // PR3 is defined in main.c as (NU32DIP_SYS_FREQ/PWM) - 1
-            // Use the same formula to calculate OC3RS
-            unsigned int PR3_VAL = (NU32DIP_SYS_FREQ/20000) - 1; // 20kHz PWM frequency
-            OC3RS = (unsigned int)((pwm_abs / 100.0) * PR3_VAL);
+            OC3RS = (unsigned int)((pwm_abs / 100.0) * PR3);
 
             if (StoringData) {
                 decctr++;
@@ -98,6 +98,22 @@ void __ISR(_TIMER_4_VECTOR, IPL5SOFT) CurrentControlISR(void) {
             if (counter == NUMSAMPS) {
                 counter = 0; // roll the counter over when needed
             }
+            break;
+
+        case PWM:
+            // Set direction
+            if (pwm < 0) {
+                // Negative direction
+                LATBbits.LATB10 = 1;
+            } else {
+                // Positive direction
+                LATBbits.LATB10 = 0;
+            }
+            
+            // Set magnitude of PWM
+            pwm_abs = abs(pwm);
+
+            OC3RS = (unsigned int)((pwm_abs / 100.0) * PR3);
             break;
 
         case IDLE:
@@ -200,3 +216,13 @@ void CurrentControl_Test(void) {
         NU32DIP_WriteUART1(message);
     }
 }
+
+void PWMControl(int pwm_val) {
+    char m[50];
+    sprintf(m, "PWM has been set to %d\r\n", pwm_val);
+    NU32DIP_WriteUART1(m);
+
+    pwm = pwm_val;
+}
+
+

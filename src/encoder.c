@@ -21,6 +21,18 @@ int get_encoder_count(){
     return pos;
 }
 
+float get_encoder_angle(int encoder_counts) {
+  const float COUNTS_PER_REVOLUTION = 1336.0f; // 334 lines * 4 counts per line
+  
+  float angle = (encoder_counts / COUNTS_PER_REVOLUTION) * 360.0f;
+  
+  // Normalize to 0-360 range if desired
+  while (angle >= 360.0f) angle -= 360.0f;
+  while (angle < 0.0f) angle += 360.0f;
+  
+  return angle;
+}
+
 void __ISR(_UART_2_VECTOR, IPL7SOFT) U2ISR(void) { 
   char data = U2RXREG; // read the data
   if (data == '\n') {

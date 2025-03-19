@@ -18,7 +18,7 @@ while not has_quit:
     print('PIC32 MOTOR DRIVER INTERFACE')
     # display the menu options; this list will grow
     print('\ta: Read current sensor (ADC counts) \tb: Read current sensor (mA)\n')
-    print('\tc: Read encoder (counts) \t\td: Dummy variable\n')
+    print('\tc: Read encoder (counts) \t\td: Read encoder (degs)\n')
     print('\te: Reset encoder \t\t\tf: Set PWM (-100 to 100)\n')
     print('\tg: Set current gains \t\t\th: Get current gains\n')
     print('\ti: Set position gains \t\t\tj: Get position gains\n')
@@ -37,16 +37,11 @@ while not has_quit:
     # take the appropriate action
     # there is no switch() in python, using if elif instead
     if (selection == 'd'):
-        # example operation
-        n_str = input('Enter number: ')  # get the number to send
-        n_int = int(n_str)  # turn it into an int
-        # print it to the screen to double check
-        print('number = ' + str(n_int))
-
-        ser.write((str(n_int)+'\n').encode())  # send the number
+        # Read encoder (deg)
         n_str = ser.read_until(b'\n')  # get the incremented number back
-        n_int = int(n_str)  # turn it into an int
-        print('Got back: ' + str(n_int) + '\n')  # print it to the screen
+        n_float = float(n_str)  # turn it into an int
+        print('The motor angle is ' + str(n_float) +
+              ' degrees\n')  # print it to the screen
     elif (selection == 'a'):
         # Read current sensor (ADC counts)
         pass
@@ -61,7 +56,9 @@ while not has_quit:
               ' counts\n')  # print it to the screen
     elif (selection == 'e'):
         # Reset encoder
-        pass
+        n_str = ser.read_until(b'\n')  # get the incremented number back
+        n_str = str(n_str)  # turn it into an int
+        print(n_str)
     elif (selection == 'f'):
         # Set PWM (-100 to 100)
         # get the number to send
@@ -69,8 +66,8 @@ while not has_quit:
         n_int = int(n_str)  # turn it into an int
 
         ser.write((str(n_int)+'\n').encode())  # send the number
-        n_str = ser.read_until(b'\n')  # get the incremented number back
-        print(str(n_str) + '\n')  # print it to the screen
+        n_str = ser.read_until(b'\n')
+        print(str(n_str) + '\n')
     elif (selection == 'g'):
         # Set current gains
         n_str = input('Enter your desired Kp current gain: ')
@@ -135,7 +132,7 @@ while not has_quit:
         pass
     elif (selection == 'p'):
         # Unpower the motor
-        pass
+        print("Powering down motor.")
     elif (selection == 'q'):
         print('Exiting client')
         has_quit = True  # exit client

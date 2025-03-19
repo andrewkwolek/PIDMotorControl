@@ -28,4 +28,7 @@ void CurrentControl_ResetIntegrator(void);
 // Returns number of samples recorded
 void CurrentControl_Test(void);
 
+// PWM control
+void PWMControl(int pwm_val);
+
 #endif // CURRENTCONTROL__H__
