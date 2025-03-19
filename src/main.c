@@ -203,12 +203,29 @@ int main() {
             case 'q':
             {
                 // handle q for quit. Later you may want to return to idle mode here
+                setMode(IDLE);
                 break;
             }
             case 'r':
             {
                 // Get mode
-                break;
+                switch(getMode()) {
+                    case IDLE:
+                        NU32DIP_WriteUART1("The PIC32 controller mode is currently IDLE.\r\n");
+                        break;
+                    case PWM:
+                        NU32DIP_WriteUART1("The PIC32 controller mode is currently PWM.\r\n");
+                        break;
+                    case ITEST:
+                        NU32DIP_WriteUART1("The PIC32 controller mode is currently ITEST.\r\n");
+                        break;
+                    case HOLD:
+                        NU32DIP_WriteUART1("The PIC32 controller mode is currently HOLD.\r\n");
+                        break;
+                    case TRACK:
+                        NU32DIP_WriteUART1("The PIC32 controller mode is currently TRACK.\r\n");
+                        break;
+                }
             }
             default:
             {

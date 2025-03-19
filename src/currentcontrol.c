@@ -2,13 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NUMSAMPS 100
-#define PLOTPTS 50
+#define NUMSAMPS 50
+#define PLOTPTS 100
 #define DECIMATION 1
 
 // Global static volatile controller variables
-static volatile float kp = 0.5;       // Proportional gain
-static volatile float ki = 0.1;       // Integral gain
+static volatile float kp = 0.12;       // Proportional gain
+static volatile float ki = 0.055;       // Integral gain
 static volatile float integral = 0.0; // Integral error term
 static volatile float Eintmax = 1000.0;
 
@@ -101,6 +101,7 @@ void __ISR(_TIMER_4_VECTOR, IPL5SOFT) CurrentControlISR(void) {
             break;
 
         case IDLE:
+            OC3RS = 0;
             break;
         
         default:
@@ -127,8 +128,8 @@ void makeWaveform() {
 // Initialize the current controller with default values and set up Timer4 ISR
 void CurrentControl_Init(void) {
     // Initialize controller parameters
-    kp = 0.5;        // Default proportional gain
-    ki = 0.1;        // Default integral gain
+    kp = 0.12;        // Default proportional gain
+    ki = 0.055;        // Default integral gain
     integral = 0.0;  // Reset integrator
 
     makeWaveform();
@@ -187,8 +188,7 @@ void CurrentControl_Test(void) {
     // Reset the integrator at the start of the test
     CurrentControl_ResetIntegrator();
 
-    // Send number of samples back to client
-    sprintf(message, "%d\r\n", NUMSAMPS);
+    sprintf(message, "%d\r\n", PLOTPTS);
     NU32DIP_WriteUART1(message);
     
     StoringData = 1; // message to ISR to start storing data
@@ -196,7 +196,7 @@ void CurrentControl_Test(void) {
         ; // do nothing
     }
     for (i=0; i<PLOTPTS; i++) { // send plot data to MATLAB
-        sprintf(message, "%d %d %d\r\n", PLOTPTS-i, MEASarray[i], REFarray[i]);
+        sprintf(message, "%f %f\r\n", REFarray[i], MEASarray[i]);
         NU32DIP_WriteUART1(message);
     }
 }

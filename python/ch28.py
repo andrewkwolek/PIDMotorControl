@@ -118,8 +118,8 @@ while not has_quit:
         t = range(len(ref))  # index array
         plt.plot(t, ref, 'r*-', t, data, 'b*-')
         plt.title('Score = ' + str(score))
-        plt.ylabel('value')
-        plt.xlabel('index')
+        plt.ylabel('Current (mA)')
+        plt.xlabel('Sample')
         plt.show()
     elif (selection == 'l'):
         # Go to angle (deg)
@@ -143,6 +143,8 @@ while not has_quit:
         ser.close()
     elif (selection == 'r'):
         # Get mode
-        pass
+        n_str = ser.read_until(b'\n')
+        n_str = str(n_str)
+        print(n_str)
     else:
         print('Invalid Selection ' + selection_endline)
