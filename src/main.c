@@ -2,6 +2,7 @@
 #include "ina219.h"
 #include "encoder.h"
 #include "currentcontrol.h"
+#include "positioncontrol.h"
 #include "utilities.h"
 
 #define BUF_SIZE 200
@@ -149,11 +150,45 @@ int main() {
             case 'i':
             {
                 // Set position gains
+                float posKp, posKi, posKd;
+                
+                // Read Kp value
+                NU32DIP_ReadUART1(buffer, BUF_SIZE);
+                sscanf(buffer, "%f", &posKp);
+                
+                // Read Ki value
+                NU32DIP_ReadUART1(buffer, BUF_SIZE);
+                sscanf(buffer, "%f", &posKi);
+                
+                // Read Kd value
+                NU32DIP_ReadUART1(buffer, BUF_SIZE);
+                sscanf(buffer, "%f", &posKd);
+                
+                // Validate gains (all should be non-negative)
+                if (posKp >= 0 && posKi >= 0 && posKd >= 0) {
+                    PositionControl_SetGains(posKp, posKi, posKd);
+                    char m[100];
+                    sprintf(m, "Position controller gains set to: Kp=%.3f, Ki=%.3f, Kd=%.3f\r\n", 
+                            posKp, posKi, posKd);
+                    NU32DIP_WriteUART1(m);
+                } else {
+                    NU32DIP_WriteUART1("Invalid gains. All values must be non-negative.\r\n");
+                }
                 break;
             }
             case 'j':
             {
                 // Get position gains
+                float posKp, posKi, posKd;
+                
+                // Get current gains from position controller
+                PositionControl_GetGains(&posKp, &posKi, &posKd);
+                
+                // Report gains to user
+                char m[100];
+                sprintf(m, "Position controller is using: Kp=%.3f, Ki=%.3f, Kd=%.3f\r\n", 
+                        posKp, posKi, posKd);
+                NU32DIP_WriteUART1(m);
                 break;
             }
             case 'k': {

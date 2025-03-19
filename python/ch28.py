@@ -82,15 +82,30 @@ while not has_quit:
         print(str(n_str) + '\n')  # print it to the screen
     elif (selection == 'h'):
         # Get current gains
-        n_str = ser.read_until(b'\n')  # get the incremented number back
+        n_str = ser.read_until(b'\n')
         n_str = str(n_str)  # turn it into an int
         print(n_str)  # print it to the screen
     elif (selection == 'i'):
         # Set position gains
-        pass
+        n_str = input('Enter your desired Kp position gain: ')
+        n_float = float(n_str)  # turn it into an int
+        ser.write((str(n_float)+'\n').encode())
+
+        n_str = input('Enter your desired Ki position gain: ')
+        n_float = float(n_str)  # turn it into an int
+        ser.write((str(n_float)+'\n').encode())
+
+        n_str = input('Enter your desired Kd position gain: ')
+        n_float = float(n_str)  # turn it into an int
+        ser.write((str(n_float)+'\n').encode())
+
+        n_str = ser.read_until(b'\n')
+        print(str(n_str) + '\n')  # print it to the screen
     elif (selection == 'j'):
         # Get position gains
-        pass
+        n_str = ser.read_until(b'\n')
+        n_str = str(n_str)  # turn it into an int
+        print(n_str)  # print it to the screen
     elif (selection == 'k'):
         # Test current control
         # get the number of data points to receive
