@@ -54,12 +54,9 @@ void __ISR(_TIMER_5_VECTOR, IPL4SOFT) PositionControlISR(void) {
             // Calculate error
             error = reference_position - actual_position;
             
-            // Normalize error to handle wrap-around (keep error between -180 and 180 degrees)
-            while (error > 180.0) error -= 360.0;
-            while (error < -180.0) error += 360.0;
-            
             // Calculate derivative term
-            derivative = error - prev_error;
+            // Calculate derivative term with proper time scaling
+            derivative = (error - prev_error) * POSITION_CONTROL_FREQ; // Scale by frequency to get rate per second
             prev_error = error;
             
             // Update integral term with anti-windup
