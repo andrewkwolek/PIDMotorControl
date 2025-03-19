@@ -22,6 +22,9 @@ int main() {
     // Initialize current controller (sets up Timer4 for ISR)
     CurrentControl_Init();
 
+    // Initialize position controller (sets up Timer5 for ISR)
+    PositionControl_Init();
+
     char message[100];
 
     __builtin_disable_interrupts();
@@ -186,7 +189,7 @@ int main() {
                 
                 // Report gains to user
                 char m[100];
-                sprintf(m, "Position controller is using: Kp=%.3f, Ki=%.3f, Kd=%.3f\r\n", 
+                sprintf(m, "The position controller is using: Kp=%.3f, Ki=%.3f, Kd=%.3f\r\n", 
                         posKp, posKi, posKd);
                 NU32DIP_WriteUART1(m);
                 break;
@@ -199,6 +202,9 @@ int main() {
             case 'l':
             {
                 // Go to angle (deg)
+                int angle;
+                NU32DIP_ReadUART1(buffer, BUF_SIZE);
+                sscanf(buffer, "%d", &angle);
                 break;
             }
             case 'm':
