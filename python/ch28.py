@@ -152,6 +152,17 @@ while not has_quit:
         plt.ylabel('value')
         plt.xlabel('index')
         plt.show()
+
+        # Send the number of points first
+        ser.write((str(len(ref))+'\n').encode())
+
+        # Send each point of the trajectory
+        for point in ref:
+            ser.write((str(point)+'\n').encode())
+
+        # Read confirmation from PIC
+        response = ser.read_until(b'\n')
+        print(response.decode().strip())
     elif (selection == 'n'):
         # Load cubic trajectory
         ref = genRef('cubic')
@@ -161,9 +172,21 @@ while not has_quit:
         plt.ylabel('value')
         plt.xlabel('index')
         plt.show()
+
+        # Send the number of points first
+        ser.write((str(len(ref))+'\n').encode())
+
+        # Send each point of the trajectory
+        for point in ref:
+            ser.write((str(point)+'\n').encode())
+
+        # Read confirmation from PIC
+        response = ser.read_until(b'\n')
+        print(response.decode().strip())
     elif (selection == 'o'):
         # Execute trajectory
-        pass
+        response = ser.read_until(b'\n')
+        print(response.decode().strip())
     elif (selection == 'p'):
         # Unpower the motor
         print("Powering down motor.")

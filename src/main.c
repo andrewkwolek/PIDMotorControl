@@ -9,6 +9,7 @@
 #define PWM_VAL 20000
 #define PR3_VAL (NU32DIP_SYS_FREQ/PWM_VAL) - 1
 #define PLOTPTS 200
+#define MAX_TRAJECTORY_LENGTH 1000
 
 int main() {
     char buffer[BUF_SIZE];
@@ -220,16 +221,70 @@ int main() {
             case 'm':
             {
                 // Load step trajectory
+                char count_str[20];
+                int trajectory_length = 0;
+                float trajectory_data[MAX_TRAJECTORY_LENGTH];
+                
+                // Read number of points
+                NU32DIP_ReadUART1(count_str, BUF_SIZE);
+                sscanf(count_str, "%d", &trajectory_length);
+                
+                // Clamp to maximum trajectory length if needed
+                if (trajectory_length > MAX_TRAJECTORY_LENGTH) {
+                    trajectory_length = MAX_TRAJECTORY_LENGTH;
+                }
+                
+                // Read each trajectory point
+                for (int i = 0; i < trajectory_length; i++) {
+                    char point_str[20];
+                    NU32DIP_ReadUART1(point_str, BUF_SIZE);
+                    sscanf(point_str, "%f", &trajectory_data[i]);
+                }
+                
+                // Load trajectory into position controller
+                PositionControl_LoadTrajectory(trajectory_data, trajectory_length);
+                
+                // Send confirmation
+                sprintf(message, "Loaded step trajectory with %d points\r\n", trajectory_length);
+                NU32DIP_WriteUART1(message);
                 break;
             }
             case 'n':
             {
-                // Load cubic trajectory
+                // Load cubic trajectory - same structure as 'm' case
+                char count_str[20];
+                int trajectory_length = 0;
+                float trajectory_data[MAX_TRAJECTORY_LENGTH];
+                
+                // Read number of points
+                NU32DIP_ReadUART1(count_str, BUF_SIZE);
+                sscanf(count_str, "%d", &trajectory_length);
+                
+                // Clamp to maximum trajectory length if needed
+                if (trajectory_length > MAX_TRAJECTORY_LENGTH) {
+                    trajectory_length = MAX_TRAJECTORY_LENGTH;
+                }
+                
+                // Read each trajectory point
+                for (int i = 0; i < trajectory_length; i++) {
+                    char point_str[20];
+                    NU32DIP_ReadUART1(point_str, BUF_SIZE);
+                    sscanf(point_str, "%f", &trajectory_data[i]);
+                }
+                
+                // Load trajectory into position controller
+                PositionControl_LoadTrajectory(trajectory_data, trajectory_length);
+                
+                // Send confirmation
+                sprintf(message, "Loaded cubic trajectory with %d points\r\n", trajectory_length);
+                NU32DIP_WriteUART1(message);
                 break;
             }
             case 'o':
             {
                 // Execute trajectory
+                PositionControl_ExecuteTrajectory();
+                NU32DIP_WriteUART1("Executing trajectory\r\n");
                 break;
             }
             case 'p':

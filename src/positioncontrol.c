@@ -6,9 +6,9 @@
 #define PLOTPTS 200
 
 // Global static volatile controller variables
-static volatile float kp = 2.0;       // Proportional gain
+static volatile float kp = 8.0;       // Proportional gain
 static volatile float ki = 0.1;       // Integral gain
-static volatile float kd = 0.0;       // Derivative gain
+static volatile float kd = 2.0;       // Derivative gain
 static volatile float integral = 0.0;  // Integral error term
 static volatile float prev_error = 0.0; // Previous error for derivative
 static volatile float reference_position = 0.0; // Reference position in degrees
@@ -42,6 +42,17 @@ void __ISR(_TIMER_5_VECTOR, IPL4SOFT) PositionControlISR(void) {
             set_encoder_flag(0);
             int p = get_encoder_count();
             actual_position = get_encoder_angle(p);
+
+            if (getMode() == TRACK && tracking_active) {
+                if (trajectory_index < trajectory_length) {
+                    reference_position = trajectory[trajectory_index++];
+                } else {
+                    // End of trajectory
+                    tracking_active = 0;
+                    // Keep holding the last position
+                    setMode(HOLD);
+                }
+            }
             
             // Calculate error
             error = reference_position - actual_position;
@@ -95,9 +106,9 @@ void __ISR(_TIMER_5_VECTOR, IPL4SOFT) PositionControlISR(void) {
 // Initialize the position controller with default values and set up Timer5 ISR
 void PositionControl_Init(void) {
     // Initialize controller parameters
-    kp = 2.0;        // Default proportional gain
+    kp = 8.0;        // Default proportional gain
     ki = 0.1;        // Default integral gain
-    kd = 0.0;        // Default derivative gain
+    kd = 2.0;        // Default derivative gain
     integral = 0.0;  // Reset integrator
     prev_error = 0.0; // Reset previous error
     
