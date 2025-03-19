@@ -90,13 +90,13 @@ void __ISR(_TIMER_4_VECTOR, IPL5SOFT) CurrentControlISR(void) {
                 if (plotind == PLOTPTS) { 
                     plotind = 0;
                     StoringData = 0; 
+                    setMode(IDLE);
                 }
             }
 
             counter++; // add one to counter every time ISR is entered
             if (counter == NUMSAMPS) {
                 counter = 0; // roll the counter over when needed
-                setMode(IDLE);
             }
             break;
 
