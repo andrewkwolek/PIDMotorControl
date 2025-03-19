@@ -284,7 +284,6 @@ int main() {
             {
                 // Execute trajectory
                 PositionControl_ExecuteTrajectory();
-                NU32DIP_WriteUART1("Executing trajectory\r\n");
                 break;
             }
             case 'p':

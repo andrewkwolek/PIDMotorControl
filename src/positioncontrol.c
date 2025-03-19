@@ -26,7 +26,7 @@ static volatile float MEASarray[PLOTPTS];
 static volatile int StoringData = 0;
 static volatile int plot_index = 0;
 static volatile int decimation_counter = 0;
-static volatile int DECIMATION = 5;
+static volatile int DECIMATION = 1;
 
 // ISR for position control loop (200 Hz)
 void __ISR(_TIMER_5_VECTOR, IPL4SOFT) PositionControlISR(void) {
@@ -45,10 +45,15 @@ void __ISR(_TIMER_5_VECTOR, IPL4SOFT) PositionControlISR(void) {
 
             if (getMode() == TRACK && tracking_active) {
                 if (trajectory_index < trajectory_length) {
-                    reference_position = trajectory[trajectory_index++];
+                    reference_position = trajectory[trajectory_index];
+                    if (StoringData) {
+                        MEASarray[trajectory_index] = actual_position;
+                    }
+                    trajectory_index++;
                 } else {
                     // End of trajectory
                     tracking_active = 0;
+                    StoringData = 0;
                     // Keep holding the last position
                     setMode(HOLD);
                 }
@@ -75,21 +80,6 @@ void __ISR(_TIMER_5_VECTOR, IPL4SOFT) PositionControlISR(void) {
             // Set current reference for the current controller
             setCurrentReference(current_command);
             
-            // If we're storing data for plotting
-            if (StoringData) {
-                decimation_counter++;
-                if (decimation_counter >= DECIMATION) {
-                    decimation_counter = 0;
-                    if (plot_index < PLOTPTS) {
-                        REFarray[plot_index] = reference_position;
-                        MEASarray[plot_index] = actual_position;
-                        plot_index++;
-                    } else {
-                        StoringData = 0;
-                        plot_index = 0;
-                    }
-                }
-            }
             break;
             
         default:
@@ -186,6 +176,8 @@ void PositionControl_LoadTrajectory(float *new_trajectory, int length) {
 void PositionControl_ExecuteTrajectory(void) {
     // Reset trajectory index
     trajectory_index = 0;
+    int j = 0;
+    char message[100];
     
     // Set initial position
     reference_position = trajectory[0];
@@ -199,6 +191,18 @@ void PositionControl_ExecuteTrajectory(void) {
     
     // Set mode to TRACK
     setMode(TRACK);
+
+    sprintf(message, "%d\r\n", trajectory_length);
+    NU32DIP_WriteUART1(message);
+    
+    StoringData = 1; // message to ISR to start storing data
+    while (StoringData) { // wait until ISR says data storing is done
+        ; // do nothing
+    }
+    for (j=0; j<trajectory_length; j++) { // send plot data to MATLAB
+        sprintf(message, "%f %f\r\n", trajectory[j], MEASarray[j]);
+        NU32DIP_WriteUART1(message);
+    }
 }
 
 void PositionControl_ResetIntegrator(void) {

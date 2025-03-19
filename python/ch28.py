@@ -185,8 +185,30 @@ while not has_quit:
         print(response.decode().strip())
     elif (selection == 'o'):
         # Execute trajectory
-        response = ser.read_until(b'\n')
-        print(response.decode().strip())
+        n_str = ser.read_until(b'\n')
+        n_int = int(n_str)  # turn it into an int
+        print('Data length = ' + str(n_int))
+        ref = []
+        data = []
+        data_received = 0
+        while data_received < n_int:
+            # get the data as a string, ints seperated by spaces
+            dat_str = ser.read_until(b'\n')
+            dat_f = list(map(float, dat_str.split()))  # now the data is a list
+            ref.append(dat_f[0])
+            data.append(dat_f[1])
+            data_received = data_received + 1
+        meanzip = zip(ref, data)
+        meanlist = []
+        for i, j in meanzip:
+            meanlist.append(abs(i-j))
+        score = mean(meanlist)
+        t = range(len(ref))  # index array
+        plt.plot(t, ref, 'r*-', t, data, 'b*-')
+        plt.title('Score = ' + str(score))
+        plt.ylabel('Angle (deg)')
+        plt.xlabel('Sample')
+        plt.show()
     elif (selection == 'p'):
         # Unpower the motor
         print("Powering down motor.")
