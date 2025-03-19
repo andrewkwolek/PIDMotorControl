@@ -69,6 +69,10 @@ int main() {
             case 'b':
             {
                 // Read current sensor (mA)
+                double current = INA219_read_current();
+                char m[50];
+                sprintf(m, "%d\r\n", current);
+                NU32DIP_WriteUART1(m);
                 break;
             }
             case 'c':

@@ -48,7 +48,10 @@ while not has_quit:
         pass
     elif (selection == 'b'):
         # Read current sensor (mA)
-        pass
+        n_str = ser.read_until(b'\n')  # get the incremented number back
+        n_float = float(n_str)  # turn it into an int
+        print('The current is ' + str(n_float) +
+              ' mA.\n')  # print it to the screen
     elif (selection == 'c'):
         # Read encoder (counts)
         n_str = ser.read_until(b'\n')  # get the incremented number back
