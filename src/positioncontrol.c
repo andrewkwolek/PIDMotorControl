@@ -21,8 +21,8 @@ static volatile int trajectory_index = 0;
 static volatile int tracking_active = 0;
 
 // Arrays for storing test data
-static volatile float REFarray[PLOTPTS];
-static volatile float MEASarray[PLOTPTS];
+static volatile float REFarray[MAX_TRAJECTORY_LENGTH];
+static volatile float MEASarray[MAX_TRAJECTORY_LENGTH];
 static volatile int StoringData = 0;
 static volatile int plot_index = 0;
 static volatile int decimation_counter = 0;
@@ -166,6 +166,7 @@ void PositionControl_LoadTrajectory(float *new_trajectory, int length) {
     // Copy trajectory data
     for (i = 0; i < length; i++) {
         trajectory[i] = new_trajectory[i];
+        REFarray[i] = new_trajectory[i];
     }
     
     trajectory_length = length;
@@ -200,7 +201,7 @@ void PositionControl_ExecuteTrajectory(void) {
         ; // do nothing
     }
     for (j=0; j<trajectory_length; j++) { // send plot data to MATLAB
-        sprintf(message, "%f %f\r\n", trajectory[j], MEASarray[j]);
+        sprintf(message, "%f %f\r\n", REFarray[j], MEASarray[j]);
         NU32DIP_WriteUART1(message);
     }
 }
