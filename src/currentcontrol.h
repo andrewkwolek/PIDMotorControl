@@ -31,4 +31,8 @@ void CurrentControl_Test(void);
 // PWM control
 void PWMControl(int pwm_val);
 
+// Current reference value to be used by current controller
+float getCurrentReference(void);
+void setCurrentReference(float ref);
+
 #endif // CURRENTCONTROL__H__

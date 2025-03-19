@@ -33,7 +33,7 @@ void __ISR(_TIMER_5_VECTOR, IPL4SOFT) PositionControlISR(void) {
     static float current_command = 0.0;
     float actual_position, error, derivative;
     
-    switch (getMode()) {
+    switch(getMode()) {
         case HOLD:
         case TRACK:
             // Read current position from encoder
@@ -74,7 +74,7 @@ void __ISR(_TIMER_5_VECTOR, IPL4SOFT) PositionControlISR(void) {
             current_command = kp * error + ki * integral + kd * derivative;
             
             // Set current reference for the current controller
-            // This will be implemented by sending to current controller
+            setCurrentReference(current_command);
             
             // If we're storing data for plotting
             if (StoringData) {
@@ -257,4 +257,11 @@ void PositionControl_ExecuteTrajectory(void) {
     
     // Set mode to TRACK
     setMode(TRACK);
+}
+
+void PositionControl_ResetIntegrator(void) {
+    __builtin_disable_interrupts();
+    integral = 0.0;
+    prev_error = 0.0;
+    __builtin_enable_interrupts();
 }

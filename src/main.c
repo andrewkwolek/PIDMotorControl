@@ -202,9 +202,19 @@ int main() {
             case 'l':
             {
                 // Go to angle (deg)
-                int angle;
+                float angle;
                 NU32DIP_ReadUART1(buffer, BUF_SIZE);
-                sscanf(buffer, "%d", &angle);
+                sscanf(buffer, "%f", &angle);
+                
+                // Set the reference position for the position controller
+                PositionControl_SetReference(angle);
+                
+                // Switch to HOLD mode
+                setMode(HOLD);
+                
+                // Provide feedback to the user
+                sprintf(message, "Going to angle: %.2f degrees\r\n", angle);
+                NU32DIP_WriteUART1(message);
                 break;
             }
             case 'm':

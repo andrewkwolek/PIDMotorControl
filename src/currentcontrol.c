@@ -14,6 +14,7 @@ static volatile float integral = 0.0; // Integral error term
 static volatile float Eintmax = 1000.0;
 static volatile int pwm = 0;
 static volatile int pwm_abs = 0;
+static volatile float current_reference = 0.0; // Reference current from position controller
 
 // Arrays for storing test data
 static volatile float REFarray[PLOTPTS];
@@ -24,6 +25,16 @@ static volatile int StoringData = 0;
 // Constants
 static const float umax = 100.0;     // Maximum control output
 static const float umin = -100.0;    // Minimum control output
+
+// Get the current reference value
+float getCurrentReference(void) {
+    return current_reference;
+}
+
+// Set the current reference value
+void setCurrentReference(float ref) {
+    current_reference = ref;
+}
 
 // ISR for current control loop
 void __ISR(_TIMER_4_VECTOR, IPL5SOFT) CurrentControlISR(void) {
@@ -100,6 +111,53 @@ void __ISR(_TIMER_4_VECTOR, IPL5SOFT) CurrentControlISR(void) {
             }
             break;
 
+        case HOLD:
+        case TRACK:
+            // Read current from sensor
+            actual = INA219_read_current();
+            
+            // Calculate error using reference from position controller
+            float error_pos = current_reference - actual;
+            
+            // Update integral term with anti-windup
+            integral += error_pos;
+            if (integral > Eintmax) {
+                integral = Eintmax;
+            } else if (integral < -Eintmax) {
+                integral = -Eintmax;
+            }
+
+            // Calculate control output (PI controller)
+            float u_pos = kp * error_pos + ki * integral;
+            
+            // Apply output limits with anti-windup
+            if (u_pos > umax) {
+                u_pos = umax;
+                // Prevent further integration in this direction
+                integral -= error_pos;
+            } else if (u_pos < umin) {
+                u_pos = umin;
+                // Prevent further integration in this direction
+                integral -= error_pos;
+            }
+            
+            if (u_pos < 0) {
+                // Negative direction
+                LATBbits.LATB10 = 1;
+            } else {
+                // Positive direction
+                LATBbits.LATB10 = 0;
+            }
+            
+            // Set magnitude of PWM (convert controlOutput [-100, 100] to PWM duty cycle)
+            pwm_abs = abs((int)u_pos);
+            if (pwm_abs > 100) {
+                pwm_abs = 100; // Safety clamp to maximum allowed value
+            }
+            
+            OC3RS = (unsigned int)((pwm_abs / 100.0) * PR3);
+            break;
+
         case PWM:
             // Set direction
             if (pwm < 0) {
@@ -147,6 +205,7 @@ void CurrentControl_Init(void) {
     kp = 0.12;        // Default proportional gain
     ki = 0.055;        // Default integral gain
     integral = 0.0;  // Reset integrator
+    current_reference = 0.0; // Initialize current reference
 
     makeWaveform();
     
@@ -224,5 +283,3 @@ void PWMControl(int pwm_val) {
 
     pwm = pwm_val;
 }
-
-

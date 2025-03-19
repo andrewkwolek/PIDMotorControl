@@ -135,9 +135,13 @@ while not has_quit:
         plt.show()
     elif (selection == 'l'):
         # Go to angle (deg)
-        print("Enter the desired motor angle in degrees: ")
-        n_int = int(n_str)  # turn it into an int
+        n_str = input("Enter the desired motor angle in degrees: ")
+        n_int = float(n_str)  # turn it into an int
         ser.write((str(n_int)+'\n').encode())
+
+        n_str = ser.read_until(b'\n')
+        n_str = str(n_str)  # turn it into an int
+        print(n_str)  # print it to the screen
     elif (selection == 'm'):
         # Load step trajectory
         pass
