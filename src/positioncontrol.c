@@ -37,24 +37,15 @@ void __ISR(_TIMER_5_VECTOR, IPL4SOFT) PositionControlISR(void) {
         case HOLD:
         case TRACK:
             // Read current position from encoder
-            actual_position = get_encoder_angle(get_encoder_count());
-            
-            // If tracking mode, update reference from trajectory
-            if (getMode() == TRACK && tracking_active) {
-                if (trajectory_index < trajectory_length) {
-                    reference_position = trajectory[trajectory_index++];
-                } else {
-                    // End of trajectory
-                    tracking_active = 0;
-                    // Keep holding the last position
-                    setMode(HOLD);
-                }
-            }
+            WriteUART2("a");
+            while(!get_encoder_flag()){}
+            set_encoder_flag(0);
+            int p = get_encoder_count();
+            actual_position = get_encoder_angle(p);
             
             // Calculate error
             error = reference_position - actual_position;
-            
-            // Calculate derivative term
+
             // Calculate derivative term with proper time scaling
             derivative = (error - prev_error) * POSITION_CONTROL_FREQ; // Scale by frequency to get rate per second
             prev_error = error;
@@ -160,63 +151,6 @@ void PositionControl_SetReference(float reference_deg) {
 // Get the current reference position
 float PositionControl_GetReference(void) {
     return reference_position;
-}
-
-// Hold the current position
-void PositionControl_Hold(void) {
-    // Read current position
-    float current_position = get_encoder_angle(get_encoder_count());
-    
-    // Set reference to current position
-    reference_position = current_position;
-    
-    // Reset controller states
-    integral = 0.0;
-    prev_error = 0.0;
-    
-    // Set mode to HOLD
-    setMode(HOLD);
-}
-
-// Test position control with a step response
-void PositionControl_TestStep(void) {
-    char message[100];
-    int i = 0;
-    
-    // Reset controller states
-    integral = 0.0;
-    prev_error = 0.0;
-    
-    // Start at current position
-    float start_position = get_encoder_angle(get_encoder_count());
-    reference_position = start_position;
-    
-    // Set mode to HOLD
-    setMode(HOLD);
-    
-    // Allow controller to stabilize
-    _CP0_SET_COUNT(0);
-    while(_CP0_GET_COUNT() < NU32DIP_SYS_FREQ/4) { } // Wait 0.25s
-    
-    // Start data collection
-    plot_index = 0;
-    decimation_counter = 0;
-    StoringData = 1;
-    
-    // Step change in reference
-    reference_position = start_position + 45.0; // Step of 45 degrees
-    
-    // Wait for data collection to finish
-    while(StoringData) { }
-    
-    // Send data to client
-    sprintf(message, "%d\r\n", PLOTPTS);
-    NU32DIP_WriteUART1(message);
-    
-    for (i = 0; i < PLOTPTS; i++) {
-        sprintf(message, "%f %f\r\n", REFarray[i], MEASarray[i]);
-        NU32DIP_WriteUART1(message);
-    }
 }
 
 // Load trajectory data points

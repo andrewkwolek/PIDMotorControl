@@ -26,14 +26,8 @@ void PositionControl_SetReference(float reference_deg);
 // Get the current reference position
 float PositionControl_GetReference(void);
 
-// Hold the current position
-void PositionControl_Hold(void);
-
 // Reset the position controller integrator
 void PositionControl_ResetIntegrator(void);
-
-// Test position control with a step response
-void PositionControl_TestStep(void);
 
 // Load trajectory data points
 void PositionControl_LoadTrajectory(float *trajectory, int length);

@@ -26,10 +26,6 @@ float get_encoder_angle(int encoder_counts) {
   
   float angle = (encoder_counts / COUNTS_PER_REVOLUTION) * 360.0f;
   
-  // Normalize to 0-360 range if desired
-  while (angle >= 360.0f) angle -= 360.0f;
-  while (angle < 0.0f) angle += 360.0f;
-  
   return angle;
 }
 

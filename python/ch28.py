@@ -7,6 +7,7 @@
 import serial
 import matplotlib.pyplot as plt
 from statistics import mean
+from genref import *
 
 ser = serial.Serial('/dev/ttyUSB0', 230400)
 print('Opening port: ')
@@ -144,10 +145,22 @@ while not has_quit:
         print(n_str)  # print it to the screen
     elif (selection == 'm'):
         # Load step trajectory
-        pass
+        ref = genRef('step')
+        print(len(ref))
+        t = range(len(ref))
+        plt.plot(t, ref, 'r*-')
+        plt.ylabel('value')
+        plt.xlabel('index')
+        plt.show()
     elif (selection == 'n'):
         # Load cubic trajectory
-        pass
+        ref = genRef('cubic')
+        print(len(ref))
+        t = range(len(ref))
+        plt.plot(t, ref, 'r*-')
+        plt.ylabel('value')
+        plt.xlabel('index')
+        plt.show()
     elif (selection == 'o'):
         # Execute trajectory
         pass
